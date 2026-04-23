@@ -1,0 +1,29 @@
+# Arduino / PlatformIO
+.pio/
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.cursor/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Local debug session logs
+debug-*.log
+
+# Local secrets / build artifacts
+*.hex
+*.elf
+*.bin

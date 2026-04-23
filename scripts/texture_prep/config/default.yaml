@@ -1,0 +1,16 @@
+# Paths in `paths` are relative to this file's directory (config/) unless absolute.
+
+output:
+  size: 256
+
+alpha_threshold: 128
+
+# NO_DRAW index in emitted .bin (uint8). Must not collide with palette size (84 -> indices 0–83).
+index_sentinel: 255
+
+resampling:
+  rgb: lanczos   # lanczos | bilinear | box | nearest
+  alpha: nearest
+
+paths:
+  palette_json: ../../../assets/generated/palette_default.json

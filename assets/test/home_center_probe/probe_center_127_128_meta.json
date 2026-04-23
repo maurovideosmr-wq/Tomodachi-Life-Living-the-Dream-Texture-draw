@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "width": 256,
+  "height": 256,
+  "index_order": "row_major_y_then_x",
+  "index_formula": "i = y * width + x",
+  "index_sentinel": 255,
+  "index_sentinel_meaning": "NO_DRAW",
+  "alpha_threshold": 128,
+  "resampling_rgb": "nearest",
+  "resampling_alpha": "nearest",
+  "quantization": "nearest_lab",
+  "source_file": "C:\\Users\\user\\Projects\\tomodachi-ltd-texture-draw\\scripts\\texture_prep\\synthetic_probe:[(127, 128, 1)]",
+  "palette_json": "C:\\Users\\user\\Projects\\tomodachi-ltd-texture-draw\\assets\\generated\\palette_default.json",
+  "palette_source_meta": {
+    "source_image": "palette_default.png",
+    "source_path": "C:\\Users\\user\\Projects\\tomodachi-ltd-texture-draw\\assets\\reference\\palette_default.png",
+    "generated_at_utc": "2026-04-23T13:23:34.663896+00:00",
+    "grid": {
+      "cols": 12,
+      "rows": 7,
+      "index_order": "row_major"
+    },
+    "sampling": {
+      "roi_ratio": 0.42,
+      "white_reference": 255.0,
+      "min_pixels_after_filter": 8,
+      "aggregate": "median_lab"
+    },
+    "warnings": []
+  },
+  "generated_at_utc": "2026-04-23T13:47:25.003582+00:00"
+}

@@ -1,0 +1,30 @@
+# Paths relative to this YAML file's directory unless absolute.
+input:
+  # Relative to this file's directory (config/)
+  path: ../../../assets/reference/palette_default.png
+
+grid:
+  cols: 12
+  rows: 7
+  # row_major: index = row * cols + col (row 0 = top, col 0 = left)
+  index_order: row_major
+
+crop:
+  left: 0
+  top: 0
+  # null = extend to image edge
+  width: null
+  height: null
+
+sampling:
+  # Square ROI side = min(cell_w, cell_h) * roi_ratio, centered in cell
+  roi_ratio: 0.42
+  # Foreground = pixels not closer to pure white than to patch median (kills gaps/halos; keeps white swatches)
+  white_reference: 255.0
+  min_pixels_after_filter: 8
+  # median_rgb | median_lab (Lab median then convert back to sRGB)
+  aggregate: median_lab
+
+output:
+  include_hex: true
+  include_lab: true

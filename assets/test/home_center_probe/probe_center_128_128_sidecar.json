@@ -1,0 +1,13 @@
+{
+  "kind": "home_grid_probe",
+  "draws_logical_rc": [
+    {
+      "row": 128,
+      "col": 128,
+      "palette_index": 1
+    }
+  ],
+  "index_order": "row_major_i_eq_y_mul_w_plus_x",
+  "note": "Use docs/canvas_home_test.md for in-game procedure.",
+  "generated_at_utc": "2026-04-23T13:47:25.465057+00:00"
+}
