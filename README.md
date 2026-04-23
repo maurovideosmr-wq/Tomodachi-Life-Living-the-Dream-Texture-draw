@@ -3,6 +3,16 @@
 **中文** 用 **Arduino Pro Micro / Leonardo**（ATmega32U4）在 PC 上伪装为 **USB 手柄**，向 Switch 自动执行游戏内 256×256 格贴图/线稿操作。  
 **EN** A **Pro Micro or Leonardo**-class board emulates a **USB gamepad** to drive in-game 256×256 **bitmap** or **vector line-art** painting on *Tomodachi Life: Living the Dream* (Switch).
 
+### 重大更新（矢量多色，2026）
+
+- **84 色自动 + 九槽 LRU（推荐）**：每条 `<path>` 的描边/填色在**完整 84 色**里做 **Lab 最近邻**；编译器在 9 个快选槽上排 **LRU 绑定**。**去重色 ≤9** 时尽量一槽一主色，**超过 9 种** 时复用槽位并**继续**打完同一矢量（指令内可多次进快选/全色表换绑）。GUI 默认勾选「84 色自动 + 九槽 LRU」；命令行用 `--multicolor-auto-84`（与手选九格二选一，见下）。
+- **全色表绑定在 PC 上展开**：`FULL_BIND(0x03)` 后紧随若干 `SUB_HAT4(0x04)`，为**编译期** BFS 写死的帽键路径；`paint_vector_flash` **回放**时进入快选/全 84 色，**片内不再做**全色 BFS。仍支持 `QUICK(0x02)` 仅切到某一快选槽（槽内已是目标色时走捷径）。
+- **手选九格**（`--multicolor` + `--palette-indices-9`）与 **84 自动** 二选一，用于你想**手工固定**快选 9 格与色板下标对应关系的场合。
+- **栅格预览**：可切换 **槽位伪色(深底)**（高对比、按槽 0..8 上色，便于区分线序）与 **九槽/映射实色(灰底)**；伪色不保证等于实机当前绑定。
+- **位图** `paint_mono_flash` 流程**未变**：进游戏后仍须**自选手动笔色**；**多色/换绑仅针对** 矢量 `paint_vector_flash`。
+
+**Key changes (vector multicolor, 2026) —** Auto **84-color Lab** mapping with **9-slot LRU**; **`FULL_BIND` is expanded at compile time** to `0x03` + `SUB_HAT4` steps (no on-MCU palette BFS). **`--multicolor-auto-84`** vs **manual nine indices**; preview modes **slot pseudo-colors (dark bg)** vs **mapped sRGB (grey bg)**. **Monochrome bitmap** upload is unchanged: pick one paint color in-game; **multicolor automation applies to vector only**.
+
 **仓库导航** [中文说明](#中文) · [README in English](#english)
 
 ---
@@ -51,7 +61,9 @@
   - 单色位图：打开并上传 `firmware/paint_mono_flash/paint_mono_flash.ino`（**不要**和烟测/其它 sketch 同时混在一个窗口里改乱）。  
   - 矢量线稿：打开并上传 `firmware/paint_vector_flash/paint_vector_flash.ino`。
 8. **进游戏**
-  **先在游戏里选好一种颜色**，再进入贴图中心；固件**不负责换色**，只负责走位与落笔。详细参数与排障见 **[docs/texture_prep.md](docs/texture_prep.md)**。
+  - **位图单色**（`paint_mono_flash`）：**先在游戏里选好一种笔色**，再进贴图；固件**不**切调色板，只负责走位与落笔。  
+  - **矢量多色**（用多色流程生成并烧录的 `draw_vector_data.h`）：固件会按指令在**快选 / 全 84 色**里**自动**换绑并绘制；开画前需满足与头文件一致的约定（如 `DRAW_QUICK_INDEX_INIT`、色表与游戏一致）。  
+  详细参数与排障见 **[docs/texture_prep.md](docs/texture_prep.md)**。
 9. **排障与进阶**
   手柄枚举、只认串口、调试记录等：**[firmware/AGENT_SWITCH_DEBUG_RECORD.md](firmware/AGENT_SWITCH_DEBUG_RECORD.md)**（偏技术）。
 
@@ -65,7 +77,7 @@
 | `assets/reference/`                              | 参考色板、示例 `texturemap.png` 等（根目录不堆放杂文件）                                                                              |
 | `assets/generated/` / `processed/` / `textures/` | 生成色表、预处理输出、贴图相关资源                                                                                                  |
 | `docs/`                                          | **[arduino_switch_setup.md](docs/arduino_switch_setup.md)**、**[texture_prep.md](docs/texture_prep.md)** 等          |
-| `NintendoSwitchControlLibrary-1.3.1/`            | 第三方 Nintendo Switch 手柄库（**v1.3.1**，见下方[致谢](#第三方库与致谢--third-party-credits)）；需放入 Arduino `libraries` |
+| `NintendoSwitchControlLibrary-1.3.1/`            | 第三方 Nintendo Switch 手柄库（**v1.3.1**，见下方[致谢](#第三方库与致谢--third-party-credits)）；需放入 Arduino `libraries`                 |
 
 
 ### 另见
@@ -88,24 +100,27 @@
 
 1. **Install** [Arduino IDE](https://www.arduino.cc/en/software) (1.8 or 2.x; use 1.8.x if you hit library/AVR quirks—see the docs above).
 2. **Plug the board in**; you should see a **COM port** in Device Manager. If not, try another cable/port or board-specific drivers.
-3. **Install the bundled library**: copy the folder `**NintendoSwitchControlLibrary-1.3.1`** from the repo root into your Arduino user `**libraries**` directory (e.g. `Documents\Arduino\libraries\` on Windows), then **restart** the IDE.
+3. **Install the bundled library**: copy the folder `**NintendoSwitchControlLibrary-1.3.1`** from the repo root into your Arduino user `**libraries`** directory (e.g. `Documents\Arduino\libraries\` on Windows), then **restart** the IDE.
 4. **Select board and port**: e.g. **Tools → Board → Arduino Leonardo** (or your vendor’s Pro Micro package if needed). **Tools → Port → the COM port** shown.
 5. **Smoke test (recommended first)**: open `**firmware/switch_smoke_test/switch_smoke_test.ino`**, **Upload**. On Pro Micro, **double-tap RESET** to enter the bootloader if upload fails, then upload again. After success, move the USB cable to the **Switch** and check **System Settings → Controllers** for a wired controller; the sketch should emit periodic A presses. If nothing works, follow the **cable / board / HID** notes in the linked docs.
 6. **Prepare art on the PC**: install Python 3, `cd scripts/texture_prep`, `pip install -r requirements.txt`, run `python gui_app.py`. Use the **Bitmap** tab → export `draw_data.h` → replace `**firmware/paint_mono_flash/draw_data.h`**, *or* the **Vector** tab / CLI → `draw_vector_data.h` → `**firmware/paint_vector_flash/draw_vector_data.h*`*. Full detail: **[docs/texture_prep.md](docs/texture_prep.md)**.
 7. **Flash the painting firmware**: open `**firmware/paint_mono_flash/paint_mono_flash.ino`** *or* `**firmware/paint_vector_flash/paint_vector_flash.ino*`* and upload the one you need.
-8. **In-game**: **Pick a color first**, then open the 256×256 painting mode; the firmware does **not** change the palette, only movement and paint timing.
+8. **In-game**  
+  - **Bitmap (mono)**: **Pick one paint color first**, then open the 256×256 mode; the firmware does **not** change the in-game palette.  
+  - **Vector (multicolor build)**: the firmware **does** run quick-palette / full-84 color binding per the generated `DrawCmd` stream; match `DRAW_QUICK_INDEX_INIT` and palette expectations before you start.  
+  Details: **[docs/texture_prep.md](docs/texture_prep.md)**.
 9. **Troubleshooting / deep dives**: **[firmware/AGENT_SWITCH_DEBUG_RECORD.md](firmware/AGENT_SWITCH_DEBUG_RECORD.md)** (technical).
 
 ### Repository layout (summary)
 
 
-| Path                                           | Purpose                                                                                           |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `firmware/`                                    | Smoke test, grid probes, `**paint_mono_flash`**, `**paint_vector_flash**`, and firmware-side docs |
-| `scripts/`                                     | Palette tools, `**texture_prep/**` ( `**gui_app.py**`, `**svg_compiler.py**` )                    |
-| `assets/reference/`                            | Reference captures and sample **texturemap** image                                                |
-| `assets/generated/`, `processed/`, `textures/` | Generated palettes, preprocessed output, texture assets                                           |
-| `docs/`                                        | **Arduino + Switch** setup, **texture / vector** workflow                                         |
+| Path                                           | Purpose                                                                                                                           |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `firmware/`                                    | Smoke test, grid probes, `**paint_mono_flash`**, `**paint_vector_flash`**, and firmware-side docs                                 |
+| `scripts/`                                     | Palette tools, `**texture_prep/**` ( `**gui_app.py**`, `**svg_compiler.py**` )                                                    |
+| `assets/reference/`                            | Reference captures and sample **texturemap** image                                                                                |
+| `assets/generated/`, `processed/`, `textures/` | Generated palettes, preprocessed output, texture assets                                                                           |
+| `docs/`                                        | **Arduino + Switch** setup, **texture / vector** workflow                                                                         |
 | `NintendoSwitchControlLibrary-1.3.1/`          | Vendored Switch gamepad library (**v1.3.1**; see [Third-party credits](#第三方库与致谢--third-party-credits)); under Arduino `libraries` |
 
 
@@ -116,7 +131,6 @@
 
 ## 第三方库与致谢 / Third-party credits
 
-**中文** 随仓库附带的 **`NintendoSwitchControlLibrary-1.3.1/`** 来自上游 **[NintendoSwitchControlLibrary](https://github.com/lefmarna/NintendoSwitchControlLibrary)**（本副本 **v1.3.1**）。著作权归原作者，以 **MIT** 再分发，完整条款见 [`NintendoSwitchControlLibrary-1.3.1/LICENSE`](NintendoSwitchControlLibrary-1.3.1/LICENSE)（Copyright © 2021 **lefmarna**；Copyright © 2019 **celclow**）。感谢作者维护该库。
+**中文** 随仓库附带的 `**NintendoSwitchControlLibrary-1.3.1/`** 来自上游 **[NintendoSwitchControlLibrary](https://github.com/lefmarna/NintendoSwitchControlLibrary)**（本副本 **v1.3.1**）。著作权归原作者，以 **MIT** 再分发，完整条款见 `[NintendoSwitchControlLibrary-1.3.1/LICENSE](NintendoSwitchControlLibrary-1.3.1/LICENSE)`（Copyright © 2021 **lefmarna**；Copyright © 2019 **celclow**）。感谢作者维护该库。
 
-**EN** The bundled **`NintendoSwitchControlLibrary-1.3.1/`** is a vendored copy (**v1.3.1**) of **[NintendoSwitchControlLibrary](https://github.com/lefmarna/NintendoSwitchControlLibrary)**. It is redistributed under the **MIT License**; see [`NintendoSwitchControlLibrary-1.3.1/LICENSE`](NintendoSwitchControlLibrary-1.3.1/LICENSE) (Copyright © 2021 **lefmarna**; Copyright © 2019 **celclow**). Thanks to the authors for maintaining the library.
-
+**EN** The bundled `**NintendoSwitchControlLibrary-1.3.1/`** is a vendored copy (**v1.3.1**) of **[NintendoSwitchControlLibrary](https://github.com/lefmarna/NintendoSwitchControlLibrary)**. It is redistributed under the **MIT License**; see `[NintendoSwitchControlLibrary-1.3.1/LICENSE](NintendoSwitchControlLibrary-1.3.1/LICENSE)` (Copyright © 2021 **lefmarna**; Copyright © 2019 **celclow**). Thanks to the authors for maintaining the library.

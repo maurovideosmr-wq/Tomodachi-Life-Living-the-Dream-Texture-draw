@@ -31,8 +31,12 @@ python gui_app.py
 
 ### 矢量 Tab（线稿 / `paint_vector_flash`）
 
-- 打开 **线稿 `*.svg`**（内部用 `<path d="…">`），「刷新/编译」生成 **八向格点** 指令，右侧为 256 格栅格预览。
-- 导出 **`draw_vector_data.h`** 放入 [`firmware/paint_vector_flash`](../firmware/paint_vector_flash)，与位图单色的提示相同：**在主机上先选一种颜色**再进贴图绘制，固件**不切调色板**；落笔为「长按 A + `pushHat` 离散」与 `paint_mono_flash` 时序一致。
+- 打开 **线稿 `*.svg`**（内部用 `<path d="…">`），「刷新/编译」生成 **八向格点** 指令，右侧为 256 格栅格预览。落笔为「长按 A + `pushHat` 离散」与 `paint_mono_flash` 时序一致。
+- **单色**：与位图相同，进游戏后**自选手动**笔色，固件**不**发换色；`draw_vector_data.h` 仅 `AIR` + `DRAG`。
+- **多色**（与 `--multicolor-auto-84` 或手选九格**二选一**）  
+  - **84 色自动 + 九槽 LRU（推荐，GUI 默认）**：原色在 **整表 0..83** 上做 **Lab 最近邻**；编译器在 9 个快选槽上排绑定顺序，**去重色超过 9 种** 时按 LRU 复用槽、指令流内**继续**绘制。可选导出 `*_remap.json`、`*_vector_setup.md`。栅格预览可选 **槽位伪色(深底)**（高对比按槽）或 **映射实色(灰底)**。  
+  - **手选九格**：在界面为每个快选槽指定 **0..83** 目标索引（或 CLI `--palette-indices-9`），在 Lab 下把原色**重映射到九个目标**中最近一档；`--start-quick` / `DRAW_QUICK_INDEX_INIT` 为开跑时高亮的快选槽。  
+- 读色顺序：**行内/继承的** `stroke` → `fill` / 行内 `style`；并解析 **`<defs><style>` 里与 `class` 匹配** 的 `stroke` / `fill`（`class` 可写在**父级 `<g>`**；Illustrator 常用 `.st0 { fill: #… }`）。**桶填**仍须人工。当前**仅**处理 `<path d>`。  
 - 亦可用命令行：[`svg_compiler.py`](../scripts/texture_prep/svg_compiler.py) 见下节。
 
 ## 矢量线稿（命令行 + `draw_vector_data.h`）
@@ -44,6 +48,25 @@ cd scripts/texture_prep
 pip install -r requirements.txt
 python svg_compiler.py path/to/lineart.svg -o ../../firmware/paint_vector_flash/draw_vector_data.h --summary
 ```
+
+**多色 — 手选九格 (CLI)**（`--multicolor` 与 `--multicolor-auto-84` 二选一；九索引须与你在游戏里布置的快选九格一致）：
+
+```bash
+python svg_compiler.py color_lineart.svg -o ../../firmware/paint_vector_flash/draw_vector_data.h \
+  --multicolor --palette-json ../../assets/generated/palette_default.json \
+  --palette-indices-9 0,1,2,3,4,5,6,7,8 --remap-json ../../assets/processed/lineart_remap.json \
+  --setup-md ../../assets/processed/lineart_vector_setup.md --start-quick 0
+```
+
+**多色 — 84 自动 (CLI)**（无需 `--palette-indices-9`）：
+
+```bash
+python svg_compiler.py color_lineart.svg -o ../../firmware/paint_vector_flash/draw_vector_data.h \
+  --multicolor-auto-84 --palette-json ../../assets/generated/palette_default.json \
+  --remap-json ../../assets/processed/lineart_remap.json --summary
+```
+
+`DRAW_CMD`：单色仅 `AIR` / `DRAG`；多色另含 **`QUICK(0x02)`**（只切到槽 0..8）、**`FULL_BIND(0x03, arg1=0..83, arg2=槽)`** 及紧随的 **`SUB_HAT4(0x04)`** 子步（**编译期** BFS 展开到全 84 色格上的帽键链）。固件见 [`paint_vector_flash.ino`](../firmware/paint_vector_flash/paint_vector_flash.ino)：`runFullBindWithPath` 在需要时从绘画界面经快选进入全色表，再 `A` 确认绑定到指定槽，并维护 `g_slot_to_index` / `g_quick_index`。
 
 覆盖 `firmware/paint_vector_flash/draw_vector_data.h` 后，在 Arduino IDE 中打开 `paint_vector_flash.ino` 并上传。库与 [arduino_switch_setup.md](arduino_switch_setup.md) 与位图流相同；烟测、VID/PID、HID 见 [AGENT](../firmware/AGENT_SWITCH_DEBUG_RECORD.md) 与 [USB 补丁说明](../firmware/USB_VID_PID_patch.md)。
 
@@ -67,8 +90,7 @@ python mono_draw_export.py --indices ../../assets/processed/foo_indices.bin -o .
 - **行裁剪**：默认 `PAINT_CLIP_ROWS 1`，只扫描掩码中出现像素的 `min_r..max_r` 行；置 0 则始终扫满高。
 - **间隔**：落笔拖线用 `LINE_STEP_GAP_MS`；空跑默认 `AIR_STEP_GAP_MS`（未定义时等于 `STEP_GAP_MS`）。
 - 单格仍短按 A；`#define PAINT_LINE_MODE 0` 退回逐格点按。长按加速过猛可调 `LINE_STEP_GAP_MS` / `LINE_A_PRIME_MS`。
-- **速率标定**：游戏内「持续按住」与库里 `pushHat` 短按链不同；用 [`firmware/paint_rate_probe`](../firmware/paint_rate_probe) 配对后**只画一根**长按横线，从小调大 `LINE_HOLD_DURATION_MS`，详见 [`docs/paint_rate_probe.md`](paint_rate_probe.md)。
-- **速率标定**：游戏内「持续按住」与库里 `pushHat` 短按链不同；用 [`firmware/paint_rate_probe`](../firmware/paint_rate_probe) 扫长按时长或离散间隔，详见 [`docs/paint_rate_probe.md`](paint_rate_probe.md)。
+- **速率标定**：游戏内「持续按住」与库里 `pushHat` 短按链不同；用 [`firmware/paint_rate_probe`](../firmware/paint_rate_probe) 扫长按时长/离散间隔并配对，详见 [`docs/paint_rate_probe.md`](paint_rate_probe.md)。
 
 ## 用法（命令行）
 

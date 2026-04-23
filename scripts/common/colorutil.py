@@ -100,3 +100,23 @@ def nearest_palette_indices_lab(rgb: np.ndarray, palette_rgb: np.ndarray) -> np.
     pix_lab = xyz_to_lab(rgb255_to_xyz(rgb.astype(np.uint8)))
     d = np.sum((pix_lab[:, None, :] - pal_lab[None, :, :]) ** 2, axis=2)
     return np.argmin(d, axis=1).astype(np.int64)
+
+
+def nearest_nine_targets_lab(
+    rgb: np.ndarray, targets_rgb: np.ndarray
+) -> tuple[int, float]:
+    """
+    One sRGB pixel (3,) uint8 and nine target colors (9,3) uint8 in same space.
+    Returns (slot 0..8, Delta E CIE76).
+    """
+    t = np.asarray(targets_rgb, dtype=np.uint8)
+    if t.shape != (9, 3):
+        raise ValueError("targets_rgb must be (9,3) uint8")
+    p = np.asarray(rgb, dtype=np.uint8).reshape(1, 3)
+    pal_lab = xyz_to_lab(rgb255_to_xyz(t))
+    pix_lab = xyz_to_lab(rgb255_to_xyz(p))
+    diff = pal_lab[None, :, :] - pix_lab[:, None, :]
+    d2 = np.sum(diff**2, axis=2)
+    j = int(np.argmin(d2, axis=1)[0])
+    delta_e = float(np.sqrt(d2[0, j]))
+    return j, delta_e

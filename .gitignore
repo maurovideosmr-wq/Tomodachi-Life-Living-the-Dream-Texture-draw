@@ -23,6 +23,10 @@ __pycache__/
 # Local debug session logs
 debug-*.log
 
+# Optional vector export sidecars next to draw_vector_data.h (regenerate from GUI/CLI)
+firmware/paint_vector_flash/*_remap.json
+firmware/paint_vector_flash/*_vector_setup.md
+
 # Local secrets / build artifacts
 *.hex
 *.elf
